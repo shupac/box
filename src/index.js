@@ -8,25 +8,46 @@ require('famous-polyfills');
 var Engine = require('famous/core/Engine');
 var Modifier = require('famous/core/Modifier');
 var Transform = require('famous/core/Transform');
-var ImageSurface = require('famous/surfaces/ImageSurface');
+var Transitionable = require('famous/transitions/Transitionable');
 
-// create the main context
+var MouseSync   = require("famous/inputs/MouseSync");
+var TouchSync   = require("famous/inputs/TouchSync");
+var GenericSync = require('famous/inputs/GenericSync');
+
+GenericSync.register({
+    "mouse"  : MouseSync,
+    "touch"  : TouchSync
+});
+
+var Box = require('./views/Box');
+
 var mainContext = Engine.createContext();
+mainContext.setPerspective(1000);
 
-// your app here
-var logo = new ImageSurface({
-  size: [200, 200],
-  content: 'images/famous_logo.png',
-  classes: ['backfaceVisibility']
+var box = new Box();
+var angle = new Transitionable([-Math.PI/4, -Math.PI/4]);
+
+var modifier = new Modifier({
+    transform: function() {
+        var currAngle = angle.get();
+
+        return Transform.rotate(currAngle[0], currAngle[1], 0);
+    }
 });
 
-var initialTime = Date.now();
-var centerSpinModifier = new Modifier({
-  align: [0.5, 0.5],
-  origin: [0.5, 0.5],
-  transform : function() {
-    return Transform.rotateY(.002 * (Date.now() - initialTime));
-  }
+mainContext.add(modifier).add(box);
+
+var sync = new GenericSync({
+    "mouse"  : {},
+    "touch"  : {}
 });
 
-mainContext.add(centerSpinModifier).add(logo);
+box.pipe(sync);
+
+sync.on('update', function(data) {
+    var currAngle = angle.get();
+    angle.set([
+        currAngle[0] - data.delta[1]/300, 
+        currAngle[1] + data.delta[0]/300
+    ]);
+});
